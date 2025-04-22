@@ -1,13 +1,23 @@
 import type { Route } from "./+types/home";
-import { Welcome } from "../welcome/welcome";
+import Header from "../components/Header";
+import HeroSection from "@/components/Section/HeroSection";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "New React Router App" },
-    { name: "description", content: "Welcome to React Router!" },
+    { title: "StudyTogether" },
+    {
+      name: "description",
+      content:
+        "Welcome to StudyTogether! It's AI Powered Study Collaborative System. Here only Students can access this .",
+    },
   ];
 }
 
 export default function Home() {
-  return <Welcome />;
+  return (
+    <>
+      <Header />
+      <HeroSection></HeroSection>
+    </>
+  );
 }
