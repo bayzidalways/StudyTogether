@@ -11,20 +11,20 @@ const testimonials: Testimonial[] = [
   {
     name: "Jane Doe",
     title: "Marketing Expert",
-    text: "LearnPro gave me the tools to share my marketing knowledge with over 5,000 students. The platform made it easy to structure my course and track student progress.",
-    image: "https://example.com/jane-doe.jpg", // Replace with actual image URL
+    text: "StudyTogether gave me the tools to organize my study sessions, collaborate with peers, and stay consistent. I feel more confident academically than ever!",
+    image: "https://source.unsplash.com/100x100/?woman,student",
   },
   {
     name: "John Smith",
-    title: "Tech Guru",
-    text: "As an instructor on LearnPro, I was able to reach a global audience. The intuitive course builder allowed me to create engaging content in no time.",
-    image: "https://example.com/john-smith.jpg", // Replace with actual image URL
+    title: "Tech Mentor",
+    text: "As a study mentor, I found the real-time task boards and note-sharing features super effective. It’s like Trello and Notion for students, all-in-one!",
+    image: "https://source.unsplash.com/100x100/?man,profile",
   },
   {
     name: "Alice Johnson",
     title: "Language Instructor",
-    text: "LearnPro's features like interactive quizzes and analytics really enhanced my teaching experience. My students love the platform!",
-    image: "https://example.com/alice-johnson.jpg", // Replace with actual image URL
+    text: "I recommend StudyTogether to all my students. The platform keeps them engaged with AI assistance and gamification features that actually work.",
+    image: "https://source.unsplash.com/100x100/?teacher,woman",
   },
 ];
 
@@ -32,71 +32,98 @@ const TestimonialSection: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const nextTestimonial = () => {
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % testimonials.length);
+    setCurrentIndex((prev) => (prev + 1) % testimonials.length);
   };
 
   const prevTestimonial = () => {
-    setCurrentIndex((prevIndex) =>
-      prevIndex === 0 ? testimonials.length - 1 : prevIndex - 1
+    setCurrentIndex((prev) =>
+      prev === 0 ? testimonials.length - 1 : prev - 1
     );
   };
 
   return (
-    <section className="py-12 px-4 flex flex-col md:flex-row items-center justify-center">
-      <div className="w-full md:w-1/2 mb-8 md:mb-0">
-        <img
-          src={testimonials[currentIndex].image}
-          alt={testimonials[currentIndex].name}
-          className="w-full h-auto"
-        />
-      </div>
-      <div className="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md text-center">
-        <img
-          src={testimonials[currentIndex].image}
-          alt={testimonials[currentIndex].name}
-          className="w-12 h-12 rounded-full mx-auto mb-4"
-        />
-        <p className="text-lg font-bold mb-2">
-          {testimonials[currentIndex].name} - {testimonials[currentIndex].title}
-        </p>
-        <p className="text-gray-600 mb-4">{testimonials[currentIndex].text}</p>
-        <div className="flex justify-center">
-          <button
-            onClick={prevTestimonial}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 text-gray-600 mr-2"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth="2"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15 19l-7-7 7-7"
+    <section className="py-20 bg-gradient-to-r from-blue-50 via-white to-blue-50">
+      <div className="max-w-6xl mx-auto px-6">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
+            What Our Users Are Saying
+          </h2>
+          <p className="text-gray-500 text-base">
+            Hear directly from students and mentors using StudyTogether
+          </p>
+        </div>
+
+        <div className="flex flex-col md:flex-row items-center justify-center gap-10">
+          {/* Image block */}
+          <div className="w-full md:w-1/2 flex justify-center">
+            <img
+              src={testimonials[currentIndex].image}
+              alt={testimonials[currentIndex].name}
+              className="rounded-xl shadow-lg object-cover w-full max-w-md h-[320px] bg-gray-100"
+            />
+          </div>
+
+          {/* Testimonial Text Block */}
+          <div className="w-full md:w-1/2 bg-white p-8 rounded-xl shadow-xl relative">
+            <div className="flex flex-col items-center md:items-start">
+              <img
+                src={testimonials[currentIndex].image}
+                alt={testimonials[currentIndex].name}
+                className="w-14 h-14 rounded-full border-2 border-blue-500 shadow-md mb-4"
               />
-            </svg>
-          </button>
-          <button
-            onClick={nextTestimonial}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 text-gray-600 ml-2"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth="2"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </button>
+              <p className="text-lg text-gray-700 italic mb-6 leading-relaxed">
+                “{testimonials[currentIndex].text}”
+              </p>
+              <h4 className="text-blue-600 font-semibold text-xl">
+                {testimonials[currentIndex].name}
+              </h4>
+              <span className="text-gray-500 text-sm">
+                {testimonials[currentIndex].title}
+              </span>
+            </div>
+
+            {/* Arrows */}
+            <div className="absolute bottom-6 right-6 flex space-x-3">
+              <button
+                onClick={prevTestimonial}
+                className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 flex items-center justify-center shadow transition"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="2"
+                  stroke="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+              <button
+                onClick={nextTestimonial}
+                className="w-10 h-10 rounded-full bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center shadow transition"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="2"
+                  stroke="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </section>

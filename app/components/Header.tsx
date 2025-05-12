@@ -1,91 +1,116 @@
-// app/components/Header.tsx
+import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { Button } from "../components/ui/Button";
-import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
 const navItems = [
   { name: "Home", to: "/" },
-  { name: "Features", to: "/tasks" },
-  { name: "Support", to: "/notes" },
-  { name: "Contact Us", to: "/profile" },
+  { name: "Features", to: "/features" },
+  { name: "Support", to: "/support" },
+  { name: "Contact", to: "/contact" },
 ];
 
 export default function Header() {
+  const [isSticky, setIsSticky] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsSticky(window.scrollY > 10);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <header className="w-full shadow-md sticky top-0 z-50 bg-white">
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-        {/* Logo / Brand */}
+    <header
+      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
+        isSticky
+          ? "bg-white/90 backdrop-blur shadow-md text-gray-800"
+          : "bg-transparent text-white"
+      }`}
+    >
+      <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-4">
         <Link to="/" className="text-2xl font-bold text-blue-600">
           StudyTogether
         </Link>
 
-        {/* Desktop Nav */}
-        <nav className="hidden md:flex space-x-6 items-center">
+        {/* Desktop Menu */}
+        <nav className="hidden md:flex items-center space-x-6">
           {navItems.map((item) => (
             <NavLink
               key={item.name}
               to={item.to}
               className={({ isActive }) =>
-                `text-base font-medium ${
-                  isActive
-                    ? "text-blue-600"
-                    : "text-gray-700 hover:text-blue-600"
+                `text-base font-medium  transition duration-200 ${
+                  isSticky
+                    ? isActive
+                      ? "text-blue-700"
+                      : "text-gray-700 hover:text-blue-600"
+                    : isActive
+                    ? "text-white"
+                    : "text-white hover:text-blue-200"
                 }`
               }
             >
               {item.name}
             </NavLink>
           ))}
-          {/*Register Button */}
-          <NavLink to="/signup">
-            <Button
-              className="bg-blue-600 text-white hover:bg-blue-700"
-              variant="outline"
-            >
-              Register
-            </Button>
-          </NavLink>
 
-          {/* Login / Logout Button */}
-          <Button variant="outline" className="">
-            Login
-          </Button>
+          <Link
+            to="/signup"
+            className={`px-4 py-2 rounded-md font-medium transition duration-300 ${
+              isSticky
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "bg-white text-blue-600 hover:bg-blue-100"
+            }`}
+          >
+            Register
+          </Link>
+
+          <Link
+            to="/login"
+            className={`px-4 py-2 rounded-md border font-medium transition duration-300 ${
+              isSticky
+                ? "border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
+                : "border-white text-white hover:bg-white hover:text-blue-600"
+            }`}
+          >
+            Sign In
+          </Link>
         </nav>
 
-        {/* Mobile Menu Toggle */}
+        {/* Mobile Toggle */}
         <button
-          className="md:hidden text-gray-700"
+          className={`md:hidden ${isSticky ? "text-gray-800" : "text-white"}`}
           onClick={() => setMenuOpen(!menuOpen)}
         >
           {menuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile Dropdown */}
       {menuOpen && (
-        <div className="md:hidden px-4 pb-4 space-y-2">
+        <div className="md:hidden bg-white px-4 py-4 space-y-2 shadow-lg rounded-md">
           {navItems.map((item) => (
             <NavLink
               key={item.name}
               to={item.to}
-              className="block text-base font-medium text-gray-700 hover:text-blue-600"
               onClick={() => setMenuOpen(false)}
+              className="block text-base font-medium text-gray-700 hover:text-blue-600"
             >
               {item.name}
             </NavLink>
           ))}
-
-          <Button variant="outline" className="w-full mt-2">
-            Login
-          </Button>
-          <NavLink to="/signup" onClick={() => setMenuOpen(false)}>
-            <Button variant="outline" className="w-full mt-2">
+          <Link to="/login" onClick={() => setMenuOpen(false)}>
+            <div className="w-full mt-2 text-center border border-blue-300 text-blue-600 px-4 py-2 rounded-md hover:bg-blue-50">
+              Login
+            </div>
+          </Link>
+          <Link to="/signup" onClick={() => setMenuOpen(false)}>
+            <div className="w-full mt-2 text-center bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
               Register
-            </Button>
-          </NavLink>
+            </div>
+          </Link>
         </div>
       )}
     </header>

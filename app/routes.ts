@@ -3,5 +3,7 @@ import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
   index("routes/home.tsx"), // Homepage
-  route("signup", "pages/Register.tsx"), // Register page
+  route("signup", "pages/Authentication/Register.tsx"), // Register page
+  route("login", "pages/Authentication/Login.tsx"),
+  // route("features", "components/Section/Features.tsx"),
 ] satisfies RouteConfig;
