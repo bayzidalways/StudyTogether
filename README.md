@@ -2,7 +2,7 @@
 
 **StudyTogether** is a full-stack, AI-powered collaborative learning platform that helps students organize, study, and grow together. It features real-time group collaboration, task management, smart AI chat assistant, and gamification to improve learning productivity.
 
-![StudyTogether Banner](./assets/banner.png) <!-- Optional banner -->
+![StudyTogether Banner](./app/assets/img/banner.png) <!-- Optional banner -->
 
 ---
 
