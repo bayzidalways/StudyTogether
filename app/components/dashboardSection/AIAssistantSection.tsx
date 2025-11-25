@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Search,
   Globe,
@@ -13,14 +13,14 @@ import {
   Plus,
   Mic,
 } from "lucide-react";
+import { getGrokResponse } from "../api/openrouter";
 
-// Interface for history items
 interface HistoryItem {
   id: number;
-  text: string;
+  title: string;
+  messages: Message[];
 }
 
-// Interface for messages
 interface Message {
   id: number;
   text: string;
@@ -29,301 +29,363 @@ interface Message {
 
 const AIAssistantSection = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
-  const [currentHistoryId, setCurrentHistoryId] = useState<number | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleNewChat = () => {
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Load history from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("grok-chat-history");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      setHistory(parsed);
+      if (parsed.length > 0) {
+        const latest = parsed[0];
+        setCurrentChatId(latest.id);
+        setMessages(latest.messages);
+      }
+    }
+  }, []);
+
+  // Save history on change
+  useEffect(() => {
+    if (history.length > 0) {
+      localStorage.setItem("grok-chat-history", JSON.stringify(history));
+    }
+  }, [history]);
+
+  const createNewChat = () => {
     const newId = Date.now();
-    setCurrentHistoryId(newId);
+    setCurrentChatId(newId);
     setMessages([]);
-    setHistoryItems((prev) => [
-      { id: newId, text: "New conversation" },
+    setHistory((prev) => [
+      {
+        id: newId,
+        title: "New Chat",
+        messages: [],
+      },
       ...prev,
     ]);
   };
 
-  // Toggle sidebar visibility
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
+  const switchChat = (chat: HistoryItem) => {
+    setCurrentChatId(chat.id);
+    setMessages(chat.messages);
   };
 
-  // Toggle menu visibility for a specific history item
-  const toggleMenu = (id: number) => {
-    setOpenMenuId(openMenuId === id ? null : id);
+  const updateCurrentChatTitle = (title: string) => {
+    setHistory((prev) =>
+      prev.map((chat) =>
+        chat.id === currentChatId ? { ...chat, title } : chat
+      )
+    );
   };
 
-  // Handle menu actions
-  const handleShare = (item: HistoryItem) => {
-    navigator.clipboard.writeText(item.text);
-    alert(`✅ Copied to clipboard: "${item.text}"`);
-    setOpenMenuId(null);
-  };
+  const handleSend = async () => {
+    if (!inputValue.trim() || isLoading) return;
 
-  const handleRename = (item: HistoryItem) => {
-    const newName = prompt("Enter a new name:", item.text);
-    if (newName && newName.trim()) {
-      setHistoryItems((prev) =>
-        prev.map((el) => (el.id === item.id ? { ...el, text: newName } : el))
-      );
-    }
-    setOpenMenuId(null);
-  };
-
-  const handleDelete = (item: HistoryItem) => {
-    const confirmed = confirm("Are you sure you want to delete this?");
-    if (confirmed) {
-      setHistoryItems((prev) => prev.filter((el) => el.id !== item.id));
-    }
-    setOpenMenuId(null);
-  };
-
-  // Handle message sending with the provided API key
-  const handleSendMessage = async () => {
-    if (!inputValue.trim()) return;
-
-    // If there's no current history, create one
-    if (!currentHistoryId) {
-      const newId = Date.now();
-      setCurrentHistoryId(newId);
-      setHistoryItems((prev) => [{ id: newId, text: inputValue }, ...prev]);
-    }
-
-    const userMessage: Message = {
-      id: messages.length + 1,
+    const userMsg: Message = {
+      id: Date.now(),
       text: inputValue,
       isUser: true,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
     setInputValue("");
+    setIsLoading(true);
 
-    const loadingId = messages.length + 2;
-    setMessages((prev) => [
-      ...prev,
-      { id: loadingId, text: "🤖 Thinking...", isUser: false },
-    ]);
-
-    try {
-      const response = await fetch(
-        "https://openrouter.ai/api/v1/chat/completions",
+    // Create new chat if none exists
+    if (!currentChatId) {
+      const newId = Date.now();
+      setCurrentChatId(newId);
+      setHistory((prev) => [
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
-            "HTTP-Referer": "http://localhost:5173",
-            "X-Title": "StudyTogether AI Chatbot",
-          },
-          body: JSON.stringify({
-            model: "meta-llama/llama-3.3-8b-instruct:free",
-            messages: [{ role: "user", content: inputValue }],
-          }),
-        }
-      );
-
-      const data = await response.json();
-      const reply = data?.choices?.[0]?.message?.content ?? "⚠️ No response.";
-
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === loadingId ? { ...msg, text: reply } : msg
-        )
-      );
-    } catch (error) {
-      console.error("❌ Error fetching from AI:", error);
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === loadingId
-            ? { ...msg, text: "❌ Error getting response. Try again." }
-            : msg
+          id: newId,
+          title:
+            inputValue.slice(0, 40) + (inputValue.length > 40 ? "..." : ""),
+          messages: newMessages,
+        },
+        ...prev,
+      ]);
+    } else {
+      // Update messages in current chat
+      setHistory((prev) =>
+        prev.map((chat) =>
+          chat.id === currentChatId ? { ...chat, messages: newMessages } : chat
         )
       );
     }
+
+    // Add temporary assistant message
+    const assistantMsgId = Date.now() + 1;
+    const assistantMsg: Message = {
+      id: assistantMsgId,
+      text: "",
+      isUser: false,
+    };
+    setMessages((prev) => [...prev, assistantMsg]);
+
+    try {
+      const reader = await getGrokResponse(
+        newMessages
+          .map((m) => ({
+            role: m.isUser ? "user" : "assistant",
+            content: m.text,
+          }))
+          .concat({ role: "user", content: inputValue })
+      );
+
+      if (!reader) throw new Error("No response stream");
+
+      const decoder = new TextDecoder();
+      let assistantContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk
+          .split("\n")
+          .filter((line) => line.startsWith("data: "));
+
+        for (const line of lines) {
+          const data = line.replace("data: ", "");
+          if (data === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices[0]?.delta?.content || "";
+            assistantContent += content;
+
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsgId ? { ...m, text: assistantContent } : m
+              )
+            );
+          } catch {}
+        }
+      }
+
+      // Save final assistant message
+      const finalMessages = [
+        ...newMessages,
+        { ...assistantMsg, text: assistantContent },
+      ];
+      setMessages(finalMessages);
+
+      setHistory((prev) =>
+        prev.map((chat) =>
+          chat.id === currentChatId
+            ? { ...chat, messages: finalMessages }
+            : chat
+        )
+      );
+
+      // Auto-update title if it's still "New Chat"
+      if (currentChatId) {
+        const currentChat =
+          history.find((c) => c.id === currentChatId) || history[0];
+        if (
+          currentChat?.title === "New Chat" ||
+          currentChat?.title === "New conversation"
+        ) {
+          const firstUserMsg =
+            finalMessages.find((m) => m.isUser)?.text || "Chat";
+          updateCurrentChatTitle(
+            firstUserMsg.slice(0, 40) + (firstUserMsg.length > 40 ? "..." : "")
+          );
+        }
+      }
+    } catch (error: any) {
+      console.error("Grok API Error:", error);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantMsgId
+            ? { ...m, text: `Error: ${error.message || "Try again."}` }
+            : m
+        )
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Handle Enter key press
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      handleSend();
     }
   };
 
+  const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
+
   return (
-    <div className="flex h-screen mx-auto text-black bg-gray-100">
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col items-center p-6 transition-all duration-300">
-        {/* Sidebar Toggle Button */}
+    <div className="flex h-screen bg-gray-100 text-black">
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
         <button
           onClick={toggleSidebar}
-          className="absolute top-4 left-4 p-2 rounded-md bg-white shadow-md focus:outline-none z-10"
+          className="absolute top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg"
         >
-          <Menu
-            size={24}
-            className="text-black hover:bg-gray-200 rounded-full p-1"
-          />
+          <Menu size={24} />
         </button>
 
-        <h1 className="text-3xl font-semibold mb-8">What can I help with?</h1>
-
-        {/* Chat Area */}
-        <div className="w-full max-w-5xl border flex-1 flex flex-col text-white p-4 mb-4 shadow-lg overflow-y-auto">
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`mb-4 p-3 rounded-lg max-w-[80%] ${
-                message.isUser ? "ml-auto bg-blue-500" : "mr-auto bg-gray-700"
-              }`}
-            >
-              {message.text}
+        <div className="flex-1 overflow-y-auto p-6 pt-20">
+          {messages.length === 0 ? (
+            <div className="text-center mt-20">
+              <h1 className="text-4xl font-bold mb-8">Hi, I'm Grok</h1>
+              <p className="text-xl text-gray-600">
+                Ask me anything — powered by Grok 4.1 Fast
+              </p>
             </div>
-          ))}
+          ) : (
+            <div className="max-w-4xl mx-auto space-y-4">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${
+                    msg.isUser ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`max-w-3xl px-5 py-3 rounded-2xl ${
+                      msg.isUser
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-200 text-black"
+                    }`}
+                  >
+                    {msg.text || "..."}
+                  </div>
+                </div>
+              ))}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-200 px-5 py-3 rounded-2xl">
+                    <span className="animate-pulse">Thinking</span>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
         </div>
 
-        {/* Search Bar Area */}
-        <div className="w-full max-w-2xl bg-white rounded-full shadow-lg p-4 flex items-center space-x-4">
-          <button className="p-2 rounded-full hover:bg-gray-200">
-            <Plus size={24} className="text-black" />
-          </button>
-          <input
-            type="text"
-            placeholder="Ask anything"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={handleKeyPress}
-            className="flex-1 outline-none bg-transparent text-lg text-black"
-          />
-          <button
-            onClick={handleSendMessage}
-            className="p-2 rounded-full text-black hover:bg-gray-200"
-          >
-            <Send size={24} className="text-black" />
-          </button>
-          <button className="p-2 rounded-full hover:bg-gray-200">
-            <Search size={24} className="text-black" />
-          </button>
-          <button className="p-2 rounded-full hover:bg-gray-200">
-            <Mic size={24} className="text-black" />
-          </button>
-        </div>
+        {/* Input Bar */}
+        <div className="p-6 bg-gray-100 border-t">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-full shadow-xl flex items-center p-4 gap-3">
+              <button className="p-2 hover:bg-gray-100 rounded-full">
+                <Plus size={24} />
+              </button>
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Ask Grok anything..."
+                className="flex-1 outline-none text-lg"
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleSend}
+                disabled={isLoading || !inputValue.trim()}
+                className="p-2 hover:bg-gray-100 rounded-full disabled:opacity-50"
+              >
+                <Send
+                  size={24}
+                  className={inputValue.trim() ? "text-blue-600" : ""}
+                />
+              </button>
+            </div>
 
-        {/* Prompt Suggestions */}
-        <div className="flex flex-wrap gap-4 mt-4 justify-center">
-          <button className="px-4 py-2 bg-white rounded-full shadow-md flex items-center space-x-2 hover:bg-gray-200">
-            <Globe
-              size={24}
-              className="text-black hover:bg-gray-300 rounded-full p-1"
-            />
-            <span>Search</span>
-          </button>
-          <button className="px-4 py-2 bg-white rounded-full shadow-md flex items-center space-x-2 hover:bg-gray-200">
-            <Lightbulb
-              size={24}
-              className="text-black hover:bg-gray-300 rounded-full p-1"
-            />
-            <span>Reason</span>
-          </button>
-          <button className="px-4 py-2 bg-white rounded-full shadow-md flex items-center space-x-2 hover:bg-gray-200">
-            <Search
-              size={24}
-              className="text-black hover:bg-gray-300 rounded-full p-1"
-            />
-            <span>Deep research</span>
-          </button>
-          <button className="px-4 py-2 bg-white rounded-full shadow-md flex items-center space-x-2 hover:bg-gray-200">
-            <Image
-              size={24}
-              className="text-black hover:bg-gray-300 rounded-full p-1"
-            />
-            <span>Create image</span>
-          </button>
-          <button className="px-4 py-2 bg-white rounded-full shadow-md flex items-center space-x-2 hover:bg-gray-200">
-            <MoreHorizontal
-              size={24}
-              className="text-black hover:bg-gray-300 rounded-full p-1"
-            />
-            <span>More</span>
-          </button>
+            {/* Suggestion Pills */}
+            {messages.length === 0 && (
+              <div className="flex flex-wrap gap-3 justify-center mt-6">
+                {[
+                  "Explain quantum physics",
+                  "Write a poem",
+                  "Help me study",
+                  "Make me laugh",
+                ].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => {
+                      setInputValue(s);
+                    }}
+                    className="px-4 py-2 bg-white rounded-full shadow hover:shadow-md transition"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Right Sidebar */}
+      {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 right-0 mt-20 pt-6 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
+        className={`fixed inset-y-0 right-0 w-80 bg-white shadow-2xl transform transition-transform duration-300 z-40 ${
           isSidebarOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-black">History</h2>
-          <div>
-            <div className="flex justify-center mt-6">
-              <button
-                onClick={handleNewChat}
-                className="px-6 py-2 bg-blue-600 text-white rounded-full shadow hover:bg-blue-700 transition"
-              >
-                + New Chat
-              </button>
-            </div>
-          </div>
+        <div className="p-6 border-b">
+          <button
+            onClick={createNewChat}
+            className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition flex items-center justify-center gap-2"
+          >
+            <Plus size={20} /> New Chat
+          </button>
         </div>
-        <ul className="p-4 space-y-4">
-          {historyItems.map((item) => (
-            <li
-              key={item.id}
-              className="flex items-center justify-between hover:bg-gray-100 p-2 rounded-md relative"
+
+        <div className="overflow-y-auto h-full pb-20">
+          {history.map((chat) => (
+            <div
+              key={chat.id}
+              className={`p-4 hover:bg-gray-50 cursor-pointer border-l-4 transition ${
+                currentChatId === chat.id
+                  ? "border-blue-600 bg-blue-50"
+                  : "border-transparent"
+              }`}
+              onClick={() => switchChat(chat)}
             >
-              <span className="flex-1 truncate text-black">{item.text}</span>
-              <div className="relative">
+              <div className="flex justify-between items-start">
+                <p className="text-sm font-medium truncate flex-1">
+                  {chat.title}
+                </p>
                 <button
-                  onClick={() => toggleMenu(item.id)}
-                  className="p-1 rounded-full hover:bg-gray-200 focus:outline-none"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenMenuId(openMenuId === chat.id ? null : chat.id);
+                  }}
+                  className="p-1 hover:bg-gray-200 rounded"
                 >
-                  <MoreHorizontal
-                    size={18}
-                    className="text-black hover:bg-gray-300 rounded-full p-1"
-                  />
+                  <MoreHorizontal size={16} />
                 </button>
-                {openMenuId === item.id && (
-                  <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg z-20">
-                    <button
-                      onClick={() => handleShare(item)}
-                      className="flex items-center w-full text-left px-4 py-2 text-sm text-black hover:bg-gray-100"
-                    >
-                      <Share2
-                        size={16}
-                        className="mr-2 text-black hover:bg-gray-300 rounded-full p-1"
-                      />
-                      Share
-                    </button>
-                    <button
-                      onClick={() => handleRename(item)}
-                      className="flex items-center w-full text-left px-4 py-2 text-sm text-black hover:bg-gray-100"
-                    >
-                      <Edit
-                        size={16}
-                        className="mr-2 text-black hover:bg-gray-300 rounded-full p-1"
-                      />
-                      Rename
-                    </button>
-                    <button
-                      onClick={() => handleDelete(item)}
-                      className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                    >
-                      <Trash2
-                        size={16}
-                        className="mr-2 text-red-600 hover:bg-gray-300 rounded-full p-1"
-                      />
-                      Delete
-                    </button>
-                  </div>
-                )}
               </div>
-            </li>
+              {openMenuId === chat.id && (
+                <div className="mt-2 text-sm space-y-1">
+                  <button className="block w-full text-left px-2 py-1 hover:bg-gray-200 rounded">
+                    Rename
+                  </button>
+                  <button className="block w-full text-left px-2 py-1 text-red-600 hover:bg-red-50 rounded">
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
-        </ul>
+        </div>
       </div>
     </div>
   );

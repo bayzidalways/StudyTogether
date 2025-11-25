@@ -1,69 +1,100 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SendHorizonal, MessageCircleCode, X } from "lucide-react";
+import { SendHorizonal, MessageCircleCode, X, Loader2 } from "lucide-react";
+import { getGrokStream } from "../api/grok"; // Keep your Grok API import
+
+interface Message {
+  role: "user" | "ai";
+  text: string;
+}
 
 const AIChatBot: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<
-    { role: "user" | "ai"; text: string }[]
-  >([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
- const handleSend = async () => {
-  if (!input.trim()) return;
+  // Auto-scroll to bottom (preserved from Grok implementation)
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-  const userMessage = { role: "user" as const, text: input };
-  setMessages((prev) => [...prev, userMessage]);
-  setInput("");
+  // Grok API streaming implementation (unchanged)
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
 
-  // Show typing placeholder
-  setMessages((prev) => [...prev, { role: "ai", text: "Typing..." }]);
+    const userMessage: Message = { role: "user", text: input };
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setIsLoading(true);
 
-  try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost:5173", // Change this for production
-        "X-Title": "StudyTogether Chat Widget",
-      },
-      body: JSON.stringify({
-        model: "meta-llama/llama-3.3-8b-instruct:free",
-        messages: [
-          { role: "user", content: input },
-        ],
-      }),
-    });
+    // Add temporary AI message for typing indicator
+    setMessages((prev) => [...prev, { role: "ai", text: "" }]);
 
-    const data = await response.json();
-    const reply = data?.choices?.[0]?.message?.content ?? "🤖 No response.";
+    try {
+      const fullHistory = [...messages, userMessage].map(m => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.text,
+      }));
 
-    setMessages((prev) => [
-      ...prev.slice(0, -1), // Remove "Typing..."
-      { role: "ai", text: reply },
-    ]);
-  } catch (error) {
-    console.error("❌ AI error:", error);
-    setMessages((prev) => [
-      ...prev.slice(0, -1),
-      { role: "ai", text: "❌ Failed to fetch response. Try again." },
-    ]);
-  }
-};
+      const reader = await getGrokStream(fullHistory);
+      if (!reader) throw new Error("No response from Grok");
 
+      const decoder = new TextDecoder();
+      let aiResponse = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n").filter(line => line.startsWith("data: "));
+
+        for (const line of lines) {
+          const data = line.replace("data: ", "");
+          if (data === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices[0]?.delta?.content || "";
+            aiResponse += content;
+
+            setMessages(prev => prev.map(msg =>
+              msg.role === "ai" && msg.text === "" ? { ...msg, text: aiResponse } : msg
+            ));
+          } catch (err) {
+            console.error("Error parsing Grok stream:", err);
+          }
+        }
+      }
+
+      // Final update if response is empty
+      setMessages(prev => prev.map(msg =>
+        msg.role === "ai" && msg.text === "" ? { ...msg, text: aiResponse || "I'm here to help with your studies!" } : msg
+      ));
+
+    } catch (error) {
+      console.error("❌ Grok AI error:", error);
+      setMessages(prev => prev.map(msg =>
+        msg.role === "ai" && msg.text === "" ? { ...msg, text: "❌ Failed to connect. Try again!" } : msg
+      ));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="fixed bottom-5 right-5 z-50">
+    <div className="fixed bottom-5 right-5 z-50"> {/* Original positioning */}
       <AnimatePresence>
         {isOpen ? (
+          // Original chat window styling (w-80, h-[480px], simple white bg)
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
             className="w-80 h-[480px] bg-white shadow-xl border border-gray-300 rounded-2xl flex flex-col overflow-hidden"
           >
-            {/* Header */}
+            {/* Original Header (simple gray bg, no gradient) */}
             <div className="flex justify-between items-center p-4 border-b bg-gray-100">
               <div className="flex items-center space-x-2">
                 <MessageCircleCode className="text-blue-600" />
@@ -76,9 +107,10 @@ const AIChatBot: React.FC = () => {
               </button>
             </div>
 
-            {/* Message List */}
+            {/* Original Message List (simple white bg, smaller padding) */}
             <div className="flex-1 overflow-y-auto px-4 py-2 bg-white space-y-2 text-sm">
               {messages.length === 0 ? (
+                // Original empty state (simple italic text)
                 <p className="text-center text-gray-400 mt-10 italic">
                   Ask a question about studying...
                 </p>
@@ -88,17 +120,27 @@ const AIChatBot: React.FC = () => {
                     key={index}
                     className={`max-w-[85%] px-3 py-2 border rounded-lg text-black ${
                       msg.role === "user"
-                        ? "ml-auto bg-blue-100 border-blue-300"
-                        : "mr-auto bg-gray-100 border-gray-300"
+                        ? "ml-auto bg-blue-100 border-blue-300" // Original user bubble style
+                        : "mr-auto bg-gray-100 border-gray-300" // Original AI bubble style
                     }`}
                   >
-                    {msg.text}
+                    {msg.role === "ai" && msg.text === "" ? (
+                      // Typing indicator (matches Grok implementation)
+                      <div className="flex gap-1">
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
+                      </div>
+                    ) : (
+                      msg.text
+                    )}
                   </div>
                 ))
               )}
+              <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area */}
+            {/* Original Input Area (simple gray bg, no gradient) */}
             <div className="p-3 border-t bg-gray-50 flex items-center gap-2">
               <input
                 type="text"
@@ -107,16 +149,19 @@ const AIChatBot: React.FC = () => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 className="flex-1 px-3 py-2 border rounded-md text-sm text-black focus:outline-none focus:ring focus:border-blue-500"
+                disabled={isLoading}
               />
               <button
                 onClick={handleSend}
+                disabled={isLoading || !input.trim()}
                 className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-md"
               >
-                <SendHorizonal className="w-5 h-5" />
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <SendHorizonal className="w-5 h-5" />}
               </button>
             </div>
           </motion.div>
         ) : (
+          // Original floating button (simple gradient, no extra size)
           <motion.button
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}

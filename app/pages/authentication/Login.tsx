@@ -9,10 +9,7 @@ import {
   githubProvider,
   googleProvider,
 } from "lib/firebase";
-import {
-  signInWithEmailAndPassword,
-  signInWithPopup,
-} from "firebase/auth";
+import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -25,7 +22,11 @@ export default function Login() {
 
   const loginWithEmail = async (email: string, password: string) => {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       return userCredential.user;
     } catch (error: any) {
       throw new Error(error.message);
