@@ -231,8 +231,9 @@ const AIAssistantSection = () => {
 
   return (
     <div className="flex h-screen bg-gray-100 text-black">
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      {/* Centered Main Chat Area (50% width) */}
+      <div className="flex-1 flex flex-col items-center">
+        {/* Menu Button - Adjusted position to work with centered layout */}
         <button
           onClick={toggleSidebar}
           className="absolute top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg"
@@ -240,49 +241,51 @@ const AIAssistantSection = () => {
           <Menu size={24} />
         </button>
 
-        <div className="flex-1 overflow-y-auto p-6 pt-20">
-          {messages.length === 0 ? (
-            <div className="text-center mt-20">
-              <h1 className="text-4xl font-bold mb-8">Hi, I'm Grok</h1>
-              <p className="text-xl text-gray-600">
-                Ask me anything — powered by Grok 4.1 Fast
-              </p>
-            </div>
-          ) : (
-            <div className="max-w-4xl mx-auto space-y-4">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${
-                    msg.isUser ? "justify-end" : "justify-start"
-                  }`}
-                >
+        {/* Chat Container - Limited to 50% width, centered */}
+        <div className="w-full max-w-[50%] flex flex-col h-full">
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto p-6 pt-20">
+            {messages.length === 0 ? (
+              <div className="text-center mt-20">
+                <h1 className="text-4xl font-bold mb-8">Hi, I'm Grok</h1>
+                <p className="text-xl text-gray-600">
+                  Ask me anything — powered by Grok 4.1 Fast
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((msg) => (
                   <div
-                    className={`max-w-3xl px-5 py-3 rounded-2xl ${
-                      msg.isUser
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-200 text-black"
+                    key={msg.id}
+                    className={`flex ${
+                      msg.isUser ? "justify-end" : "justify-start"
                     }`}
                   >
-                    {msg.text || "..."}
+                    <div
+                      className={`max-w-[85%] px-5 py-3 rounded-2xl ${
+                        msg.isUser
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-200 text-black"
+                      }`}
+                    >
+                      {msg.text || "..."}
+                    </div>
                   </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-200 px-5 py-3 rounded-2xl">
-                    <span className="animate-pulse">Thinking</span>
+                ))}
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-gray-200 px-5 py-3 rounded-2xl">
+                      <span className="animate-pulse">Thinking</span>
+                    </div>
                   </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
 
-        {/* Input Bar */}
-        <div className="p-6 bg-gray-100 border-t">
-          <div className="max-w-4xl mx-auto">
+          {/* Input Bar */}
+          <div className="p-6 bg-gray-100 border-t">
             <div className="bg-white rounded-full shadow-xl flex items-center p-4 gap-3">
               <button className="p-2 hover:bg-gray-100 rounded-full">
                 <Plus size={24} />
@@ -333,7 +336,7 @@ const AIAssistantSection = () => {
         </div>
       </div>
 
-      {/* Sidebar */}
+      {/* Sidebar - Adjusted z-index and position to work with centered layout */}
       <div
         className={`fixed inset-y-0 right-0 w-80 bg-white shadow-2xl transform transition-transform duration-300 z-40 ${
           isSidebarOpen ? "translate-x-0" : "translate-x-full"
